@@ -156,7 +156,7 @@ contract VoteProcessorModule is Pausable {
         emit VoteApproved(msg.sender, proposal);
     }
 
-    /// @dev Triggers tx on-chain to sign a specific proposal. Permissionless signing once approved.
+    /// @dev Triggers tx on-chain to sign a specific proposal. It will not be permissionless as needs to notify relayers
     /// @param safe Safe from where this tx will be exec and this module is enabled
     /// @param proposal Proposal being signed on the vote preference
     function sign(IGnosisSafe safe, string memory proposal)
