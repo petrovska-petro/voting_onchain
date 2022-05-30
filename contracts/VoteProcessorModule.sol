@@ -2,8 +2,11 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "interfaces/Votium/IVotiumBribe.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+
 import "interfaces/Gnosis/IGnosisSafe.sol";
+import "interfaces/Snapshot/IProposalRegistry.sol";
 
 /*
  * @title   VoteProcessorModule
@@ -13,7 +16,7 @@ import "interfaces/Gnosis/IGnosisSafe.sol";
  directly thru the safe, where this module had being enabled.
  Hashing vote on-chain methods were taken from Aura finance repository @contracts/mocks/MockVoteStorage.sol
  */
-contract VoteProcessorModule {
+contract VoteProcessorModule is Pausable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /* ========== STRUCT ========== */
@@ -32,10 +35,8 @@ contract VoteProcessorModule {
     // https://etherscan.io/address/0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2#code#F17#L20
     address public constant signMessageLib =
         0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2;
-    // may be useful to enforce deadline from the bribes on-chain
-    // https://etherscan.io/address/0x19bbc3463dd8d07f55438014b021fb457ebd4595#code#F7#L26
-    IVotiumBribe public votiumBribe =
-        IVotiumBribe(0x19BBC3463Dd8d07f55438014b021Fb457EBD4595);
+
+    IProposalRegistry public proposalRegistry;
 
     /* ========== STATE VARIABLES ========== */
     address public governance;
@@ -49,8 +50,9 @@ contract VoteProcessorModule {
     event VoteApproved(address approver, string proposal);
 
     /// @param _governance Governance allowed to add/remove proposers & validators
-    constructor(address _governance) {
+    constructor(address _governance, address _proposalRegistry) {
         governance = _governance;
+        proposalRegistry = IProposalRegistry(_proposalRegistry);
     }
 
     /***************************************
@@ -95,6 +97,14 @@ contract VoteProcessorModule {
         _validators.remove(_validator);
     }
 
+    function pause() external onlyGovernance {
+        _pause();
+    }
+
+    function unpause() external onlyGovernance {
+        _unpause();
+    }
+
     /***************************************
        VOTE PROPOSAL, VALIDATION & EXEC
     ****************************************/
@@ -114,8 +124,19 @@ contract VoteProcessorModule {
         string memory space,
         string memory voteType
     ) external onlyVoteProposers {
-        //IVotiumBribe.Proposal memory proposalInfo = votiumBribe.proposalInfo(proposal);
-        //require(proposalInfo.deadline > block.timestamp, "invalid proposal");
+        bytes32 proposalHash = keccak256(abi.encodePacked(proposal));
+        IProposalRegistry.Proposal memory proposalInfo = proposalRegistry
+            .proposalInfo(proposalHash);
+
+        require(proposalInfo.deadline > block.timestamp, "deadline!");
+
+        if (IProposalRegistry.VotingType.Single == proposalInfo._type) {
+            require(proposalInfo.maxIndex >= choice, "invalid choice");
+        } else {
+            // here if passed a stringiy json, we will need to loop somehow to check
+            // that non of the choices are above `maxIndex`
+        }
+
         Vote memory vote = Vote(
             timestamp,
             choice,
@@ -135,10 +156,13 @@ contract VoteProcessorModule {
         emit VoteApproved(msg.sender, proposal);
     }
 
-    /// @dev Triggers tx on-chain to sign a specific proposal
+    /// @dev Triggers tx on-chain to sign a specific proposal. Permissionless signing once approved.
     /// @param safe Safe from where this tx will be exec and this module is enabled
     /// @param proposal Proposal being signed on the vote preference
-    function sign(IGnosisSafe safe, string memory proposal) external {
+    function sign(IGnosisSafe safe, string memory proposal)
+        external
+        whenNotPaused
+    {
         require(proposals[proposal].approved, "not-approved!");
 
         bytes memory data = abi.encodeWithSignature(
@@ -173,7 +197,7 @@ contract VoteProcessorModule {
                         vote.version,
                         '",',
                         '"timestamp":"',
-                        uint2str(vote.timestamp),
+                        Strings.toString(vote.timestamp),
                         '",',
                         '"space":"',
                         vote.space,
@@ -203,7 +227,7 @@ contract VoteProcessorModule {
                     proposal,
                     '",',
                     '"choice":',
-                    uint2str(choice),
+                    Strings.toString(choice),
                     ","
                     '"metadata":',
                     '"{}"',
@@ -217,35 +241,9 @@ contract VoteProcessorModule {
             keccak256(
                 abi.encodePacked(
                     "\x19Ethereum Signed Message:\n",
-                    uint2str(bytes(str).length),
+                    Strings.toString(bytes(str).length),
                     str
                 )
             );
-    }
-
-    function uint2str(uint256 _i)
-        internal
-        pure
-        returns (string memory _uintAsString)
-    {
-        if (_i == 0) {
-            return "0";
-        }
-        uint256 j = _i;
-        uint256 len;
-        while (j != 0) {
-            len++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(len);
-        uint256 k = len;
-        while (_i != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
-            _i /= 10;
-        }
-        return string(bstr);
     }
 }
