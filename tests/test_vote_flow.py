@@ -1,7 +1,7 @@
 from brownie import web3
 
 
-def test_proposer_controls(vote_processor, proposal_registry, governance, validator, proposer, safe, proposal_hash):
+def test_vote_flow(vote_processor, proposal_registry, governance, validator, proposer, safe, proposal_hash):
     vote_processor.addProposer(proposer, {'from': governance})
     vote_processor.addValidator(validator, {'from': governance})
 
