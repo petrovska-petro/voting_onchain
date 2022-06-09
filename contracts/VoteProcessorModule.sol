@@ -11,12 +11,13 @@ import "interfaces/Snapshot/IProposalRegistry.sol";
 /*
  * @title   VoteProcessorModule
  * @author  BadgerDAO @ petrovska
- * @notice  Allows whitelisted proposers to vote on a proposal 
+ * @notice  Allows whitelisted proposers to vote on a proposal
  * and validators to approve it, then the tx can get exec signing the vote on-chain
  directly thru the safe, where this module had being enabled.
  Hashing vote on-chain methods were taken from Aura finance repository @contracts/mocks/MockVoteStorage.sol
  */
 contract VoteProcessorModule is Pausable {
+
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /* ========== STRUCT ========== */
@@ -128,6 +129,7 @@ contract VoteProcessorModule is Pausable {
         IProposalRegistry.Proposal memory proposalInfo = proposalRegistry
             .proposalInfo(proposalHash);
 
+        require(proposalInfo.deadline > 0, "deadline=0!");
         require(proposalInfo.deadline > block.timestamp, "deadline!");
 
         if (IProposalRegistry.VotingType.Single == proposalInfo._type) {

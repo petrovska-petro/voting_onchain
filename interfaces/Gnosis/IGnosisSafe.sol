@@ -18,4 +18,8 @@ interface IGnosisSafe {
         bytes calldata data,
         Operation operation
     ) external returns (bool success);
+
+    function enableModule(address module) external;
+
+    function isModuleEnabled(address module) external view returns (bool);
 }
