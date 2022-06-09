@@ -175,7 +175,7 @@ contract VoteProcessorModule is Pausable {
                 signMessageLib,
                 0,
                 data,
-                IGnosisSafe.Operation.Call
+                IGnosisSafe.Operation.DelegateCall
             ),
             "sign-error!"
         );
