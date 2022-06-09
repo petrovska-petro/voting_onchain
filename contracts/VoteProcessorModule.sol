@@ -129,7 +129,6 @@ contract VoteProcessorModule is Pausable {
         IProposalRegistry.Proposal memory proposalInfo = proposalRegistry
             .proposalInfo(proposalHash);
 
-        require(proposalInfo.deadline > 0, "deadline=0!");
         require(proposalInfo.deadline > block.timestamp, "deadline!");
 
         if (IProposalRegistry.VotingType.Single == proposalInfo._type) {
