@@ -13,43 +13,46 @@ SNAPSHOT_DEFAULT_HEADERS = {
 }
 
 
-def test_vote_flow(vote_processor, proposal_registry, governance, validator, proposer, safe, proposal_hash):
-    vote_processor.addProposer(proposer, {'from': governance})
-    vote_processor.addValidator(validator, {'from': governance})
+def test_vote_flow(
+    vote_processor,
+    proposal_registry,
+    governance,
+    validator,
+    proposer,
+    safe,
+    proposal_hash,
+):
+    vote_processor.addProposer(proposer, {"from": governance})
+    vote_processor.addValidator(validator, {"from": governance})
 
     proposal_registry.initiateProposal(
-        bytes(web3.keccak(text=proposal_hash)),
-        1655164829,
-        2,
-        0,
-        {'from': governance}
-        )
+        bytes(web3.keccak(text=proposal_hash)), 1655164829, 2, 0, {"from": governance}
+    )
 
     vote_processor.setProposalVote(
         2,
         1654732831,
-        '0.1.3',
+        "0.1.3",
         proposal_hash,
-        'cvx.eth',
-        'vote',
-        {'from': proposer}
+        "cvx.eth",
+        "single-type",
+        {"from": proposer},
     )
 
-    assert not vote_processor.proposals(proposal_hash)['approved']
+    assert not vote_processor.proposals(proposal_hash)["approved"]
 
-    vote_processor.addValidator(validator, {'from': governance})
-    vote_processor.verifyVote(proposal_hash, {'from': validator})
-    assert vote_processor.proposals(proposal_hash)['approved']
+    vote_processor.addValidator(validator, {"from": governance})
+    vote_processor.verifyVote(proposal_hash, {"from": validator})
+    assert vote_processor.proposals(proposal_hash)["approved"]
 
-    safe.enableModule(vote_processor.address, {'from': safe})
+    safe.enableModule(vote_processor.address, {"from": safe})
     assert safe.isModuleEnabled(vote_processor.address)
-
 
     payload = {
         "version": "0.1.3",
-        "timestamp": 1654732831,
+        "timestamp": str(1654732831),
         "space": "cvx.eth",
-        "type": 1,
+        "type": "single-type",
         "payload": {
             "proposal": proposal_hash,
             "choice": 2,
@@ -77,4 +80,4 @@ def test_vote_flow(vote_processor, proposal_registry, governance, validator, pro
 
     assert str(vote_processor.hash(proposal_hash)) in response_id
 
-    vote_processor.sign(safe.address, proposal_hash, {'from': safe})
+    vote_processor.sign(safe.address, proposal_hash, {"from": safe})
