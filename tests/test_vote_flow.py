@@ -7,7 +7,7 @@ def test_vote_flow(vote_processor, proposal_registry, governance, validator, pro
 
     proposal_registry.initiateProposal(
         bytes(web3.keccak(text=proposal_hash)),
-        1654810593,
+        1655164829,
         2,
         0,
         {'from': governance}
@@ -15,7 +15,7 @@ def test_vote_flow(vote_processor, proposal_registry, governance, validator, pro
 
     vote_processor.setProposalVote(
         2,
-        1654551440,
+        1654732831,
         '0.1.3',
         proposal_hash,
         'cvx.eth',

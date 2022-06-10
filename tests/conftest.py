@@ -39,5 +39,4 @@ def vote_processor(deployer, governance, proposal_registry):
 
 @pytest.fixture
 def proposal_hash():
-    return "QmZqW79WDsMFMzaaisLZozuYVcQNEjY9XNkdrXM91T4syw"
-
+    return "QmeKWbpinBwRSiLg7MbfycipUUE935faELRMYgdX2syWQV"
