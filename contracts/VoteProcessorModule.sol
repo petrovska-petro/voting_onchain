@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
 import "interfaces/Gnosis/IGnosisSafe.sol";
-import "interfaces/Gnosis/ISignMessageLib.sol";
 import "interfaces/Snapshot/IProposalRegistry.sol";
 
 /*
