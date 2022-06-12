@@ -105,6 +105,11 @@ contract VoteProcessorModule is Pausable {
         _unpause();
     }
 
+    function setGovernance(address _governance) external onlyGovernance {
+        require(_governance != address(0), "zero-address!");
+        governance = _governance;
+    }
+
     /***************************************
        VOTE PROPOSAL, VALIDATION & EXEC
     ****************************************/
@@ -166,7 +171,7 @@ contract VoteProcessorModule is Pausable {
         require(proposals[proposal].approved, "not-approved!");
 
         bytes memory data = abi.encodeWithSignature(
-            "signMessage(bytes32)",
+            "signMessage(bytes)",
             hash(proposal)
         );
 
@@ -245,5 +250,16 @@ contract VoteProcessorModule is Pausable {
                     str
                 )
             );
+    }
+
+    /***************************************
+                VIEW METHODS
+    ****************************************/
+    function getProposers() public view returns (address[] memory) {
+        return _proposers.values();
+    }
+
+    function getValidators() public view returns (address[] memory) {
+        return _validators.values();
     }
 }
