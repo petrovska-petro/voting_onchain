@@ -32,6 +32,7 @@ contract VoteProcessorModule is Pausable {
     /* ========== ADDRESS CONSTANT, VERSION & ONCHAIN NAMING ========== */
     string public constant NAME = "Vote Processor Module";
     string public constant VERSION = "0.1.0";
+    uint256 public constant MIN_WINDOW_VERIFICATION = 20 minutes;
     // https://etherscan.io/address/0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2#code#F17#L20
     address public constant signMessageLib =
         0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2;
@@ -141,6 +142,13 @@ contract VoteProcessorModule is Pausable {
             // here if passed a stringiy json, we will need to loop somehow to check
             // that non of the choices are above `maxIndex`
         }
+
+        // NOTE: since there is concern of front-run, we add a back-stop
+        require(
+            block.timestamp >
+                proposals[proposal].proposedTimestamp + MIN_WINDOW_VERIFICATION,
+            "in-verification-window!"
+        );
 
         Vote memory vote = Vote(
             timestamp,
