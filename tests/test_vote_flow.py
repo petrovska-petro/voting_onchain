@@ -1,7 +1,8 @@
-from brownie import web3
+from brownie import web3, chain
 import requests
 import json
-import time
+import brownie
+import pytest
 
 
 SNAPSHOT_VOTE_RELAYER = "https://snapshot-relayer.herokuapp.com/api/message"
@@ -13,6 +14,7 @@ SNAPSHOT_DEFAULT_HEADERS = {
 }
 
 
+@pytest.fixture(scope='function', autouse=True)
 def test_vote_flow(
     vote_processor,
     proposal_registry,
@@ -41,7 +43,7 @@ def test_vote_flow(
 
     assert not vote_processor.proposals(proposal_hash)["approved"]
 
-    vote_processor.addValidator(validator, {"from": governance})
+    # vote_processor.addValidator(validator, {"from": governance})
     vote_processor.verifyVote(proposal_hash, {"from": validator})
     assert vote_processor.proposals(proposal_hash)["approved"]
 
@@ -81,3 +83,24 @@ def test_vote_flow(
     assert str(vote_processor.hash(proposal_hash)) in response_id
 
     vote_processor.sign(safe.address, proposal_hash, {"from": safe})
+
+
+def test_set_vote_frontrun(
+    vote_processor,
+    validator,
+    proposer,
+    safe,
+    proposal_hash,
+):
+    chain.sleep(60 * 19) # 20 min window
+
+    with brownie.reverts("in-verification-window!"):
+        vote_processor.setProposalVote(
+            1,
+            1655860829,
+            "0.1.3",
+            proposal_hash,
+            "cvx.eth",
+            "single-type",
+            {"from": proposer},
+        )

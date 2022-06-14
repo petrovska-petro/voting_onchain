@@ -27,6 +27,7 @@ contract VoteProcessorModule is Pausable {
         string space;
         string voteType;
         bool approved;
+        uint256 proposedTimestamp;
     }
 
     /* ========== ADDRESS CONSTANT, VERSION & ONCHAIN NAMING ========== */
@@ -156,7 +157,8 @@ contract VoteProcessorModule is Pausable {
             version,
             space,
             voteType,
-            false
+            false,
+            block.timestamp
         );
         proposals[proposal] = vote;
     }
