@@ -172,7 +172,7 @@ contract VoteProcessorModule is Pausable {
 
         bytes memory data = abi.encodeWithSignature(
             "signMessage(bytes)",
-            hash(proposal)
+            abi.encode(hash(proposal))
         );
 
         require(

@@ -26,12 +26,12 @@ def test_vote_flow(
     vote_processor.addValidator(validator, {"from": governance})
 
     proposal_registry.initiateProposal(
-        bytes(web3.keccak(text=proposal_hash)), 1655164829, 2, 0, {"from": governance}
+        bytes(web3.keccak(text=proposal_hash)), 1655864829, 2, 0, {"from": governance}
     )
 
     vote_processor.setProposalVote(
         2,
-        1654732831,
+        1655860829,
         "0.1.3",
         proposal_hash,
         "cvx.eth",
@@ -50,7 +50,7 @@ def test_vote_flow(
 
     payload = {
         "version": "0.1.3",
-        "timestamp": str(1654732831),
+        "timestamp": str(1655860829),
         "space": "cvx.eth",
         "type": "single-type",
         "payload": {
