@@ -8,24 +8,22 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "interfaces/Gnosis/IGnosisSafe.sol";
 import "interfaces/Snapshot/IProposalRegistry.sol";
 
-/*
- * @title   VoteProcessorModule
- * @author  BadgerDAO @ petrovska
- * @notice  Allows whitelisted proposers to vote on a proposal 
- * and validators to approve it, then the tx can get exec signing the vote on-chain
- directly thru the safe, where this module had being enabled.
- Hashing vote on-chain methods were taken from Aura finance repository @contracts/mocks/MockVoteStorage.sol
- */
+/// @title   VoteProcessorModule
+/// @author  Petrovska @ BadgerDAO
+/// @notice  Allows whitelisted proposers to vote on a proposal
+/// and validators to approve it, then the tx can get exec signing the vote on-chain
+// directly thru the safe, where this module had being enabled.
 contract VoteProcessorModule is Pausable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /* ========== STRUCT ========== */
     struct Vote {
         uint256 timestamp;
-        uint256 choice;
+        string choices;
         string version;
         string space;
         string voteType;
+        bytes hashed;
         bool approved;
         uint256 proposedTimestamp;
     }
@@ -35,7 +33,7 @@ contract VoteProcessorModule is Pausable {
     string public constant VERSION = "0.1.0";
     uint256 public constant MIN_WINDOW_VERIFICATION = 20 minutes;
     // https://etherscan.io/address/0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2#code#F17#L20
-    address public constant signMessageLib =
+    address public constant SIGN_MESSAGE_LIB =
         0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2;
 
     IProposalRegistry public proposalRegistry;
@@ -49,7 +47,18 @@ contract VoteProcessorModule is Pausable {
     EnumerableSet.AddressSet internal _validators;
 
     /* ========== EVENT ========== */
-    event VoteApproved(address approver, string proposal);
+    event VoteProposed(
+        address indexed proposer,
+        string indexed space,
+        string indexed proposal,
+        string choices,
+        bytes hashed
+    );
+    event VoteApproved(
+        address indexed approver,
+        string indexed space,
+        string indexed proposal
+    );
 
     /// @param _governance Governance allowed to add/remove proposers & validators
     constructor(address _governance, address _proposalRegistry) {
@@ -117,32 +126,26 @@ contract VoteProcessorModule is Pausable {
     ****************************************/
 
     /// @dev Allows to WL addresses propose a vote
-    /// @param choice Choices selected
+    /// @param choices Choices selected
     /// @param timestamp Time when the voting proposal was generated
     /// @param version Snapshot version
     /// @param proposal Proposal hash
     /// @param space Space where voting occurs
-    /// @param voteType Type of vote (single-choice...etc)
+    /// @param voteType Type of vote (single-choice, weighted)
     function setProposalVote(
-        uint256 choice,
+        string memory choices,
         uint256 timestamp,
         string memory version,
         string memory proposal,
         string memory space,
-        string memory voteType
+        string memory voteType,
+        bytes memory hashed
     ) external onlyVoteProposers {
         bytes32 proposalHash = keccak256(abi.encodePacked(proposal));
         IProposalRegistry.Proposal memory proposalInfo = proposalRegistry
             .proposalInfo(proposalHash);
 
         require(proposalInfo.deadline > block.timestamp, "deadline!");
-
-        if (IProposalRegistry.VotingType.Single == proposalInfo._type) {
-            require(proposalInfo.maxIndex >= choice, "invalid choice");
-        } else {
-            // here if passed a stringiy json, we will need to loop somehow to check
-            // that non of the choices are above `maxIndex`
-        }
 
         // NOTE: since there is concern of front-run, we add a back-stop
         require(
@@ -153,14 +156,17 @@ contract VoteProcessorModule is Pausable {
 
         Vote memory vote = Vote(
             timestamp,
-            choice,
+            choices,
             version,
             space,
             voteType,
+            hashed,
             false,
             block.timestamp
         );
         proposals[proposal] = vote;
+
+        emit VoteProposed(msg.sender, space, proposal, choices, hashed);
     }
 
     /// @dev Allows to WL addresses to verify a vote to be exec
@@ -168,7 +174,7 @@ contract VoteProcessorModule is Pausable {
     function verifyVote(string memory proposal) external onlyVoteValidators {
         Vote storage vote = proposals[proposal];
         vote.approved = true;
-        emit VoteApproved(msg.sender, proposal);
+        emit VoteApproved(msg.sender, vote.space, proposal);
     }
 
     /// @dev Triggers tx on-chain to sign a specific proposal. It will not be permissionless as needs to notify relayers
@@ -182,84 +188,18 @@ contract VoteProcessorModule is Pausable {
 
         bytes memory data = abi.encodeWithSignature(
             "signMessage(bytes)",
-            abi.encode(hash(proposal))
+            proposals[proposal].hashed
         );
 
         require(
             safe.execTransactionFromModule(
-                signMessageLib,
+                SIGN_MESSAGE_LIB,
                 0,
                 data,
                 IGnosisSafe.Operation.DelegateCall
             ),
             "sign-error!"
         );
-    }
-
-    /***************************************
-       HASH GENERATION ON-CHAIN FOR SIGNING
-    ****************************************/
-
-    function hash(string memory proposal) public view returns (bytes32) {
-        Vote memory vote = proposals[proposal];
-
-        return
-            hashStr(
-                string(
-                    abi.encodePacked(
-                        "{",
-                        '"version":"',
-                        vote.version,
-                        '",',
-                        '"timestamp":"',
-                        Strings.toString(vote.timestamp),
-                        '",',
-                        '"space":"',
-                        vote.space,
-                        '",',
-                        '"type":"',
-                        vote.voteType,
-                        '",',
-                        payloadStr(proposal, vote.choice),
-                        "}"
-                    )
-                )
-            );
-    }
-
-    function payloadStr(string memory proposal, uint256 choice)
-        internal
-        pure
-        returns (string memory)
-    {
-        return
-            string(
-                abi.encodePacked(
-                    '"payload":',
-                    "{",
-                    '"proposal":',
-                    '"',
-                    proposal,
-                    '",',
-                    '"choice":',
-                    Strings.toString(choice),
-                    ","
-                    '"metadata":',
-                    '"{}"',
-                    "}"
-                )
-            );
-    }
-
-    function hashStr(string memory str) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    "\x19Ethereum Signed Message:\n",
-                    Strings.toString(bytes(str).length),
-                    str
-                )
-            );
     }
 
     /***************************************
@@ -271,5 +211,21 @@ contract VoteProcessorModule is Pausable {
 
     function getValidators() public view returns (address[] memory) {
         return _validators.values();
+    }
+
+    function getHash(string memory proposal)
+        public
+        view
+        returns (bytes memory)
+    {
+        return proposals[proposal].hashed;
+    }
+
+    function getChoices(string memory proposal)
+        public
+        view
+        returns (string memory)
+    {
+        return proposals[proposal].choices;
     }
 }
