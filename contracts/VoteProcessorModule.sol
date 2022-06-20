@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 
-import "interfaces/Gnosis/IGnosisSafe.sol";
-import "interfaces/Snapshot/IProposalRegistry.sol";
+import "interfaces/gnosis/IGnosisSafe.sol";
+import "interfaces/snapshot/IProposalRegistry.sol";
 
 /// @title   VoteProcessorModule
 /// @author  Petrovska @ BadgerDAO
